@@ -14,27 +14,90 @@
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.js"></script>
 
 <body>
-  <p id="chartError" style="color: red; display: none;">No data available for the selected date range.</p>
-  <canvas id="lineChart" width="800" height="400"></canvas>
-  <!-- <button id="timeRangeFilter">Filter by Time Range</button> -->
-  <button id="specialEndpointFilter">Filter Special Endpoints</button>
-  <input type="text" id="dateRangePicker" placeholder="Select date range">
-  <!-- Add a "Reset" button -->
-  <button id="resetChart">Reset Chart</button>
+
+  <div class="container">
+    <div class="wrapper">
+      <label for="dateRangePicker"><span>Select start and end date :</span>
+        <input type="text" id="dateRangePicker" placeholder="Select date range">
+      </label>
+      <button id="specialEndpointFilter">Filter Special Endpoints</button>
+      <button id="resetChart">Reset Chart</button>
+    </div>
+
+    <canvas id="lineChart" width="800" height="400"></canvas>
+  </div>
+
+
 </body>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .container {
+    margin: 0 auto;
+    max-width: 1200px;
+    border: 3px solid #c6c6c6;
+  }
+
+  .wrapper {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    margin: 15px;
+    background-color: #c6c6c6;
+
+  }
+
+  .wrapper span {
+    font-weight: 600;
+  }
+
+  .wrapper button,
+  .wrapper input {
+    font-weight: 600;
+    flex: 1 0 auto;
+    border: 2px solid cyan;
+    background: #fff;
+    color: #000;
+    border-radius: 25px;
+    padding: 10px 20px;
+    transition: 0.3s all ease-in-out;
+    cursor: pointer;
+  }
+
+  .wrapper input {
+    border-color: #999;
+  }
+
+  .wrapper button:hover {
+    background: cyan;
+    color: #fff;
+  }
+</style>
 <script>
 
   const data = [
-    { endpoint: "/home", time: '2023-10-08T02:18:17.735Z', requests: 2364, special: true },
-    { endpoint: "/home", time: '2023-10-07T02:23:17.735Z', requests: 1132 },
-    { endpoint: "/home", time: '2023-10-06T02:03:17.735Z', requests: 3433, special: true },
-    { endpoint: "/product", time: '2023-10-07T02:13:17.735Z', requests: 1563 },
-    { endpoint: "/product", time: '2023-10-06T02:12:17.735Z', requests: 1563 },
-    { endpoint: "/contact", time: '2023-10-07T02:13:17.735Z', requests: 2298, special: true },
-    { endpoint: "/product", time: '2023-10-08T02:17:17.735Z', requests: 3198, special: true },
-    { endpoint: "/contact", time: '2023-10-08T02:13:17.735Z', requests: 1950, special: true },
-    { endpoint: "/contact", time: '2023-10-06T02:01:17.735Z', requests: 2800 },
+    { endpoint: "/home", time: '2023-10-08', requests: 2364, special: true },
+    { endpoint: "/home", time: '2023-10-07', requests: 1132 },
+    { endpoint: "/home", time: '2023-10-06', requests: 3433, special: true },
+    { endpoint: "/product", time: '2023-10-07', requests: 1563 },
+    { endpoint: "/product", time: '2023-10-06', requests: 1563 },
+    { endpoint: "/contact", time: '2023-10-07', requests: 2298, special: true },
+    { endpoint: "/product", time: '2023-10-08', requests: 3198, special: true },
+    { endpoint: "/contact", time: '2023-10-08', requests: 1950, special: true },
+    { endpoint: "/contact", time: '2023-10-06', requests: 2800 },
   ];
+  // Iterate through the data and split it based on the endpoint
+  function getEndpointData(mapset, data) {
+    data.forEach(item => {
+      if (!mapset[item.endpoint]) {
+        mapset[item.endpoint] = [];
+      }
+      mapset[item.endpoint].push(item);
+
+    });
+  }
 
   function color(index) {
     let borderColor = 'blue'; // Default color
@@ -45,45 +108,49 @@
     }
     return borderColor
   }
+
   // Create objects to store the split data
   const dataMap = {};
+  getEndpointData(dataMap, data)
 
-  // Iterate through the data and split it based on the endpoint
-  data.forEach(item => {
-    if (!dataMap[item.endpoint]) {
-      dataMap[item.endpoint] = [];
+  // Extract unique dates for the x-axis
+  const uniqueDates = [];
+  for (const item of data) {
+    if (!uniqueDates.includes(item.time)) {
+      uniqueDates.push(item.time);
     }
-    dataMap[item.endpoint].push(item);
-  });
+  }
+
+  // Sort the dates in ascending order
+  uniqueDates.sort();
+
+  // Create an array of labels for the x-axis (time)
+  const labels = uniqueDates;
 
   // Convert the dataMap into an array of arrays
   const result = Object.values(dataMap);
 
   // Now result contains the split data based on the endpoint
-  console.log(result);
 
   const ctx = document.getElementById('lineChart').getContext('2d');
 
   const config_data = {
-    labels: result[0].map(item => item.time),
+    labels: labels,
     datasets: result.map((endpointData, index) => {
-
-
       return {
         label: endpointData[0].endpoint,
         data: endpointData.map(item => item.requests),
         borderColor: color(index),
         fill: false,
-        // tension: 0.4
+        tension: 0.3
       };
     }),
   };
 
   // Now we have the chart configuration in config_data with datasets for each endpoint
-  console.log(config_data);
 
   const chartConfig = {
-    type: 'line',
+    type: 'line', //type of chart i.e line
     data: config_data,
     respossive: true
   };
@@ -91,7 +158,6 @@
   const lineChart = new Chart(ctx, chartConfig);
 
   // Implement user-friendly features
-
 
   // Initialize the date range picker
   $('#dateRangePicker').daterangepicker({
@@ -103,7 +169,7 @@
   });
 
 
-
+  //Filter data by date range
   $('#dateRangePicker').on('apply.daterangepicker', function (ev, picker) {
     const startDate = picker.startDate.toDate();
     const endDate = picker.endDate.toDate();
@@ -116,69 +182,78 @@
 
     // Check if there's no data in the filtered result
     if (filteredData.length === 0) {
-      // Display an error message or perform any other desired action
-      alert("No data available for the selected date range.");
-
+      alert("No data available for the selected date range."); // Display an error message or perform any other desired action
       // Remove the plotted graph
       lineChart.data.labels = [];
       lineChart.data.datasets = [];
     } else {
       // Split the filtered data based on endpoints
       const filteredDataMap = {};
+      getEndpointData(filteredDataMap, filteredData)
+      // Update the chart with the filtered data
 
-      filteredData.forEach(item => {
-        if (!filteredDataMap[item.endpoint]) {
-          filteredDataMap[item.endpoint] = [];
-        }
-        filteredDataMap[item.endpoint].push(item);
+      const filteredResult = Object.values(filteredDataMap);
+      // Sort the dates in ascending order
+
+      // console.log(filteredResult)
+      const uniqueDates = [...new Set(filteredResult.flat().map(item => item.time))].sort();
+
+      lineChart.data.labels = uniqueDates;
+
+      filteredResult.forEach(endpointData => {
+        endpointData.sort((a, b) => new Date(a.time) - new Date(b.time));
       });
 
-      // Update the chart with the filtered data
-      const filteredResult = Object.values(filteredDataMap);
-      lineChart.data.labels = filteredResult[0].map(item => item.time);
       lineChart.data.datasets = filteredResult.map((endpointData, index) => ({
         label: endpointData[0].endpoint,
         data: endpointData.map(item => item.requests),
-        borderColor: getRandomColor(),
+        borderColor: color(index),
         fill: false,
+        tension: 0.3
       }));
     }
 
     lineChart.update();
   });
 
+  // Filter data to include only items where 'special' is true
+  const filteredData = data.filter(item => item.special === true)
+  $('#specialEndpointFilter').on('click', () => {
 
-
-  document.getElementById('specialEndpointFilter').addEventListener('click', () => {
-    // Filter data to include only items where 'special' is true
-    const filteredData = data.filter(item => item.special === true);
-
-    // Create a map of unique endpoints and their corresponding data
-    const endpointMap = new Map();
-
-    filteredData.forEach(item => {
-      if (!endpointMap.has(item.endpoint)) {
-        endpointMap.set(item.endpoint, []);
+    // Extract unique dates for the x-axis
+    const uniqueDates = [];
+    for (const item of data) {
+      if (!uniqueDates.includes(item.time)) {
+        uniqueDates.push(item.time);
       }
-      endpointMap.get(item.endpoint).push(item);
-    });
+    }
 
+    // Sort the dates in ascending order
+    uniqueDates.sort();
+
+    // Create an array of labels for the x-axis (time)
+    const labels = uniqueDates;
+    const endpointMap = {};
+    getEndpointData(endpointMap, filteredData)
+
+    // console.log(endpointMap)
     // Update the chart to display the filtered data for each endpoint
-
-    const updatedDatasets = Array.from(endpointMap.values()).map((endpointData, index) => ({
+    const updatedDatasets = Object.values(endpointMap).map((endpointData, index) => ({
       label: endpointData[0].endpoint,
-      data: endpointData.map(item => item.requests),
-      borderColor: color(index), // Generate a random color for each endpoint
+      data: labels.map(date => {
+        const dataPoint = endpointData.find(item => item.time === date);
+        return dataPoint ? dataPoint.requests : null;
+      }),
+      borderColor: color(index),
       fill: false,
-      // tension: 0.4
+      spanGaps: true,
+      tension: 0.3
     }));
 
-    lineChart.data.labels = filteredData.map(item => item.time);
+    lineChart.data.labels = labels;
     lineChart.data.datasets = updatedDatasets;
-
     lineChart.update();
   });
-
 
   // Store the original chart data when it is initially loaded
   const originalData = {
@@ -186,15 +261,13 @@
     datasets: lineChart.data.datasets,
   };
 
-  function reset() {
+
+  // Add an event listener for the "Reset Chart" button
+  document.getElementById('resetChart').addEventListener('click', () => {
     lineChart.data.labels = originalData.labels;
     lineChart.data.datasets = originalData.datasets;
     lineChart.update();
-  }
-  // Add an event listener for the "Reset Chart" button
-  document.getElementById('resetChart').addEventListener('click', () => {
     // Restore the original data to reset the chart
-    reset();
   });
 
 
