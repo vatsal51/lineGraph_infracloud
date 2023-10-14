@@ -17,18 +17,21 @@
 
   <div class="container">
     <div class="wrapper">
+      <!-- Date range picker input -->
       <label for="dateRangePicker"><span>Select start and end date :</span>
         <input type="text" id="dateRangePicker" placeholder="Select date range">
       </label>
+      <!-- Filter Special Endpoints button -->
       <button id="specialEndpointFilter">Filter Special Endpoints</button>
+      <!-- Reset Chart button -->
       <button id="resetChart">Reset Chart</button>
     </div>
 
+    <!-- Chart canvas -->
     <canvas id="lineChart" width="800" height="400"></canvas>
   </div>
-
-
 </body>
+
 <style>
   * {
     box-sizing: border-box;
@@ -75,8 +78,8 @@
     color: #fff;
   }
 </style>
-<script>
 
+<script>
   const data = [
     { endpoint: "/home", time: '2023-10-08', requests: 2364, special: true },
     { endpoint: "/home", time: '2023-10-07', requests: 1132 },
@@ -87,77 +90,88 @@
     { endpoint: "/product", time: '2023-10-08', requests: 3198, special: true },
     { endpoint: "/contact", time: '2023-10-08', requests: 1950, special: true },
     { endpoint: "/contact", time: '2023-10-06', requests: 2800 },
-  ];
-  // Iterate through the data and split it based on the endpoint
-  function getEndpointData(mapset, data) {
-    data.forEach(item => {
-      if (!mapset[item.endpoint]) {
-        mapset[item.endpoint] = [];
-      }
-      mapset[item.endpoint].push(item);
+  ]
 
+  const updatedData = {};
+  // Sort the data by date and time
+  data.sort((a, b) => new Date(a.time) - new Date(b.time));
+  data.forEach(item => {
+    // Extract relevant data from the original data
+    const endpoint = item.endpoint;
+
+    // Create an array for each unique endpoint and add data
+    if (!updatedData[endpoint]) {
+      updatedData[endpoint] = [];
+    }
+
+    updatedData[endpoint].push({
+      endpoint: item.endpoint,
+      time: item.time,
+      request: item.requests,
+      special: item.special || false,
     });
-  }
+  });
 
+
+
+  // Function to determine the border color based on the endpoint
   function color(index) {
     let borderColor = 'blue'; // Default color
-    if (index === 1) {
+    if (index === '/product') {
       borderColor = 'red';
-    } else if (index === 2) {
+    } else if (index === '/contact') {
       borderColor = 'green';
     }
-    return borderColor
+    return borderColor;
   }
 
-  // Create objects to store the split data
-  const dataMap = {};
-  getEndpointData(dataMap, data)
+  // Prepare the dataset for Chart.js
+  const datasets = Object.entries(updatedData).map(item => {
+    const resultArray = item[1].map(item => ({
+      x: item.time,
+      y: item.request,
+    }));
 
-  // Extract unique dates for the x-axis
-  const uniqueDates = [];
-  for (const item of data) {
-    if (!uniqueDates.includes(item.time)) {
-      uniqueDates.push(item.time);
-    }
-  }
+    return {
+      label: item[0],
+      data: resultArray,
+      borderColor: color(item[0]),
+      fill: false,
+      tension: 0.3,
+    };
+  });
 
-  // Sort the dates in ascending order
-  uniqueDates.sort();
-
-  // Create an array of labels for the x-axis (time)
-  const labels = uniqueDates;
-
-  // Convert the dataMap into an array of arrays
-  const result = Object.values(dataMap);
-
-  // Now result contains the split data based on the endpoint
-
-  const ctx = document.getElementById('lineChart').getContext('2d');
-
+  // Chart.js configuration
   const config_data = {
-    labels: labels,
-    datasets: result.map((endpointData, index) => {
-      return {
-        label: endpointData[0].endpoint,
-        data: endpointData.map(item => item.requests),
-        borderColor: color(index),
-        fill: false,
-        tension: 0.3
-      };
-    }),
+    datasets: datasets,
   };
 
-  // Now we have the chart configuration in config_data with datasets for each endpoint
+  // Get the chart canvas element
+  const ctx = document.getElementById("lineChart").getContext("2d");
 
-  const chartConfig = {
-    type: 'line', //type of chart i.e line
+  // Create a new Chart.js instance
+  const lineChart = new Chart(ctx, {
+    type: "line",
     data: config_data,
-    respossive: true
-  };
+    options: {
+      scales: {
+        x: {
+          title: {
 
-  const lineChart = new Chart(ctx, chartConfig);
+            display: true,
+            text: 'Date/Time'
+          }
+        },
+        y: {
+          title: {
 
-  // Implement user-friendly features
+            display: true,
+            text: 'Requests'
+          }
+        }
+      }
+    }
+  });
 
   // Initialize the date range picker
   $('#dateRangePicker').daterangepicker({
@@ -168,8 +182,7 @@
     },
   });
 
-
-  //Filter data by date range
+  // Filter data by date range
   $('#dateRangePicker').on('apply.daterangepicker', function (ev, picker) {
     const startDate = picker.startDate.toDate();
     const endDate = picker.endDate.toDate();
@@ -180,96 +193,97 @@
       return itemDate >= startDate && itemDate <= endDate;
     });
 
+
     // Check if there's no data in the filtered result
     if (filteredData.length === 0) {
       alert("No data available for the selected date range."); // Display an error message or perform any other desired action
       // Remove the plotted graph
-      lineChart.data.labels = [];
       lineChart.data.datasets = [];
     } else {
       // Split the filtered data based on endpoints
-      const filteredDataMap = {};
-      getEndpointData(filteredDataMap, filteredData)
-      // Update the chart with the filtered data
+      const updatedfilteredData = {};
+      filteredData.forEach(item => {
+        const endpoint = item.endpoint;
 
-      const filteredResult = Object.values(filteredDataMap);
-      // Sort the dates in ascending order
+        if (!updatedfilteredData[endpoint]) {
+          updatedfilteredData[endpoint] = [];
+        }
 
-      // console.log(filteredResult)
-      const uniqueDates = [...new Set(filteredResult.flat().map(item => item.time))].sort();
-
-      lineChart.data.labels = uniqueDates;
-
-      filteredResult.forEach(endpointData => {
-        endpointData.sort((a, b) => new Date(a.time) - new Date(b.time));
+        updatedfilteredData[endpoint].push({
+          time: item.time,
+          request: item.requests,
+          special: item.special || false, // Set special to false if it doesn't exist
+        });
       });
 
-      lineChart.data.datasets = filteredResult.map((endpointData, index) => ({
-        label: endpointData[0].endpoint,
-        data: endpointData.map(item => item.requests),
-        borderColor: color(index),
-        fill: false,
-        tension: 0.3
-      }));
+      const fdatasets = Object.entries(updatedfilteredData).map(item => {
+        const resultArray = item[1].map(item => ({
+          'x': item.time,
+          'y': item.request
+        }));
+
+        return {
+          label: item[0],
+          data: resultArray,
+          borderColor: color(item[0]),
+          fill: false,
+          tension: 0.3
+        };
+      });
+      lineChart.data.datasets = fdatasets;
     }
 
     lineChart.update();
   });
+
 
   // Filter data to include only items where 'special' is true
-  const filteredData = data.filter(item => item.special === true)
+  const specialfilteredData = data.filter(item => item.special === true)
   $('#specialEndpointFilter').on('click', () => {
 
-    // Extract unique dates for the x-axis
-    const uniqueDates = [];
-    for (const item of data) {
-      if (!uniqueDates.includes(item.time)) {
-        uniqueDates.push(item.time);
+    const supdatedData = {};
+
+
+    specialfilteredData.forEach(item => {
+      const endpoint = item.endpoint;
+
+      if (!supdatedData[endpoint]) {
+        supdatedData[endpoint] = [];
       }
-    }
 
-    // Sort the dates in ascending order
-    uniqueDates.sort();
+      supdatedData[endpoint].push({
+        time: item.time,
+        request: item.requests,
+        special: item.special || false, // Set special to false if it doesn't exist
+      });
+    });
 
-    // Create an array of labels for the x-axis (time)
-    const labels = uniqueDates;
-    const endpointMap = {};
-    getEndpointData(endpointMap, filteredData)
+    const specialdatasets = Object.entries(supdatedData).map(item => {
+      const resultArray = item[1].map(item => ({
+        'x': item.time,
+        'y': item.request
+      }));
 
-    // console.log(endpointMap)
-    // Update the chart to display the filtered data for each endpoint
-    const updatedDatasets = Object.values(endpointMap).map((endpointData, index) => ({
-      label: endpointData[0].endpoint,
-      data: labels.map(date => {
-        const dataPoint = endpointData.find(item => item.time === date);
-        return dataPoint ? dataPoint.requests : null;
-      }),
-      borderColor: color(index),
-      fill: false,
-      spanGaps: true,
-      tension: 0.3
-    }));
+      return {
+        label: item[0],
+        data: resultArray,
+        borderColor: color(item[0]),
+        fill: false,
+        tension: 0.3
+      };
+    });
 
-    lineChart.data.labels = labels;
-    lineChart.data.datasets = updatedDatasets;
+    lineChart.data.datasets = specialdatasets;
     lineChart.update();
   });
-
-  // Store the original chart data when it is initially loaded
-  const originalData = {
-    labels: lineChart.data.labels,
-    datasets: lineChart.data.datasets,
-  };
 
 
   // Add an event listener for the "Reset Chart" button
   document.getElementById('resetChart').addEventListener('click', () => {
-    lineChart.data.labels = originalData.labels;
-    lineChart.data.datasets = originalData.datasets;
+    lineChart.data.datasets = datasets;
     lineChart.update();
     // Restore the original data to reset the chart
   });
-
 
 </script>
 
